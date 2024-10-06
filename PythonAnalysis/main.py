@@ -9,6 +9,12 @@ DATA_FILEPATH = "Employee_Performance.csv"
 def load_data(file_path):
     return pd.read_csv(file_path)
 
+
+def print_sumary(dataframe):
+    print(dataframe.head())
+    print(dataframe.describe())
+
+
 def check_data_validity(dataframe):
     print("~ Duplicate checks:")
     duplicates = dataframe[dataframe.duplicated(keep=False)]
@@ -49,12 +55,78 @@ def check_data_validity(dataframe):
     plt.show()
 
 
+def remove_outliers(dataframe, threshold = 1.5):
+    q1 = dataframe['Salary'].quantile(0.25)
+    q3 = dataframe['Salary'].quantile(0.75)
+    iqr = q3 - q1
+
+    # Identify rows outside threshold
+    outlier_rows = dataframe[dataframe['Salary'] > q3 + (threshold * iqr)]
+    return dataframe.drop(outlier_rows.index)
+
+
+def categorical_plots(dataframe):
+    colour_set = ['#2A9D8F', '#E9C46A', '#F4A261', '#E76F51']
+
+    # Graph proportion of gender
+    gender_counts = dataframe['Gender'].value_counts()
+    print(gender_counts)
+    plt.figure(figsize=(5,5))
+    plt.pie(gender_counts, labels=gender_counts.index, autopct='%1.1f%%', startangle=90)
+    plt.title('Proportion of Male and Female Employees', fontweight='bold')
+    plt.show()
+
+    # Graph proportion of departments
+    department_counts = dataframe['Department'].value_counts()
+    print(department_counts)
+    plt.figure(figsize=(7, 7))
+    plt.pie(department_counts, labels=department_counts.index, autopct='%1.1f%%', startangle=90, colors=colour_set)
+    plt.title('Proportion of Employee Count by Departent', fontweight='bold')
+    plt.show()
+
+
+def stacked_box_histplot(dataframe, column_name, x_label, y_label, title, bins=20, discrete=False):
+    plt.figure(figsize=(8, 5))
+    fig, (axis_box, axis_histogram) = plt.subplots(2, sharex=True, gridspec_kw={"height_ratios": (.15, .85)})
+    sns.boxplot(dataframe[column_name], orient='h', ax=axis_box)
+    sns.histplot(data=dataframe, x=column_name, bins=bins, ax=axis_histogram, discrete=discrete)
+    axis_box.set(xlabel='', title=title)
+    axis_histogram.set(xlabel=x_label, ylabel=y_label)
+
+
+def quantitative_plots(dataframe):
+    plt.figure(figsize=(8,5))
+    plt.title('Employees by Years of Experience (excluding highly paid employees)', fontweight='bold')
+    sns.set_style("whitegrid")
+    sns.histplot(data=dataframe, x="Experience", bins=10, kde=False, discrete=True)
+    plt.xticks([0,1,2,3,4,5,6,7,8,9])
+    plt.xlabel('Years of Experience')
+    plt.ylabel('Count of Employees')
+    plt.show()
+
+    stacked_box_histplot(dataframe, 'TrainingHours',
+                         'Hours of Training', 'Count of Employees',
+                         'Employees by Training Hours')
+    plt.show()
+
+    stacked_box_histplot(dataframe, 'PerformanceRating',
+                         'Performance Rating', 'Count of Employees',
+                         'Employees by Performance Rating', bins=10)
+    plt.xticks([1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5])
+    plt.show()
+
+    stacked_box_histplot(dataframe, 'Salary',
+                         'Monthly Salary', 'Count of Employees', 'Employees by Salary',
+                         bins=20)
+    plt.show()
+    print(dataframe['Salary'].mode())
+
 
 if __name__ == '__main__':
-    rawDataframe = load_data(DATA_FILEPATH)
-    check_data_validity(rawDataframe)
-    print(rawDataframe.head())
-    print(rawDataframe.describe())
-    # TODO create and call methods to generate graphs and calculate statistics.
-    # Avoid giving a method multiple jobs
+    dataframe = load_data(DATA_FILEPATH)
+    print_sumary(dataframe)
+    # check_data_validity(dataframe)
+    dataframe = remove_outliers(dataframe)
+    # categorical_plots(dataframe)
+    quantitative_plots(dataframe)
 
