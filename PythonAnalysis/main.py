@@ -5,8 +5,11 @@ import matplotlib.pyplot as plt
 from scipy import stats
 
 DATA_FILEPATH = "Employee_Performance.csv"
+colour_set = ['#2A9D8F', '#E9C46A', '#F4A261', '#E76F51']
 
 def load_data(file_path):
+    #seniority level was assigned using this excel formula:
+    # =IF(D2>=8,"senior", IF(D2>=5, "mid-level", IF(D2>=2, "junior", "entry-level")))
     return pd.read_csv(file_path)
 
 
@@ -66,8 +69,6 @@ def remove_outliers(dataframe, threshold = 1.5):
 
 
 def categorical_plots(dataframe):
-    colour_set = ['#2A9D8F', '#E9C46A', '#F4A261', '#E76F51']
-
     # Graph proportion of gender
     gender_counts = dataframe['Gender'].value_counts()
     print(gender_counts)
@@ -81,7 +82,15 @@ def categorical_plots(dataframe):
     print(department_counts)
     plt.figure(figsize=(7, 7))
     plt.pie(department_counts, labels=department_counts.index, autopct='%1.1f%%', startangle=90, colors=colour_set)
-    plt.title('Proportion of Employee Count by Departent', fontweight='bold')
+    plt.title('Proportion of Employee Count by Department', fontweight='bold')
+    plt.show()
+
+    # Graph proportion of departments
+    seniority_counts = dataframe['Seniority'].value_counts()
+    print(seniority_counts)
+    plt.figure(figsize=(7, 7))
+    plt.pie(seniority_counts, labels=seniority_counts.index, autopct='%1.1f%%', startangle=90, colors=colour_set)
+    plt.title('Proportion of Employee Count by Seniority', fontweight='bold')
     plt.show()
 
 
@@ -116,17 +125,45 @@ def quantitative_plots(dataframe):
     plt.show()
 
     stacked_box_histplot(dataframe, 'Salary',
-                         'Monthly Salary', 'Count of Employees', 'Employees by Salary',
-                         bins=20)
+                         'Monthly Salary', 'Count of Employees', 'Employees by Salary Including Highly Paid Employees',
+                         bins=30)
     plt.show()
     print(dataframe['Salary'].mode())
+
+
+def plot_performance_by_experience(dataframe, department):
+    violin = sns.violinplot(y=dataframe['PerformanceRating'], x=dataframe['Seniority'],
+                            palette=colour_set, hue=dataframe['Seniority'])
+
+    labels = ['Junior', 'Entry-Level', 'Mid-Level', 'Senior']
+    violin.set_xticks(range(4))
+    violin.set_xticklabels(labels)
+
+    violin.set_xlabel('Seniority', fontweight='bold')
+    violin.set_ylabel('Performance Rating')
+    violin.set_title('Performance Rating by Experience in '+department+" Department", fontweight='bold')
+
+    plt.show()
+
+
+def multivariate(dataframe):
+    department_dataframes = {
+        'IT': dataframe[dataframe['Department'] == 'IT'],
+        'HR': dataframe[dataframe['Department'] == 'HR'],
+        'Sales': dataframe[dataframe['Department'] == 'Sales'],
+        'Marketing': dataframe[dataframe['Department'] == 'Marketing'],
+    }
+    for name, df in department_dataframes.items():
+        plot_performance_by_experience(df, name)
+
 
 
 if __name__ == '__main__':
     dataframe = load_data(DATA_FILEPATH)
     print_sumary(dataframe)
     # check_data_validity(dataframe)
-    dataframe = remove_outliers(dataframe)
+    # dataframe = remove_outliers(dataframe)
     # categorical_plots(dataframe)
-    quantitative_plots(dataframe)
+    # quantitative_plots(dataframe)
+    multivariate(dataframe)
 
