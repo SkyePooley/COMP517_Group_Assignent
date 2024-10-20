@@ -4,6 +4,11 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy import stats
 
+from statsmodels.formula.api import ols
+import statsmodels.api as sm
+from scipy.stats import f
+from statsmodels.stats.multicomp import MultiComparison
+
 DATA_FILEPATH = "Employee_Performance.csv"
 colour_set = ['#2A9D8F', '#E9C46A', '#F4A261', '#E76F51']
 
@@ -167,3 +172,104 @@ if __name__ == '__main__':
     # quantitative_plots(dataframe)
     multivariate(dataframe)
 
+
+
+
+
+
+def plot_kde_histograms(dataframe):
+    # Set up the plot style
+    sns.set(style="whitegrid")
+    
+    #unique departments
+    departments = dataframe['Department'].unique()
+    
+    #figure for subplots
+    plt.figure(figsize=(15, 10))
+    
+    # Loop through each department, KDE and histogram plot
+    for i, department in enumerate(departments, 1):
+        plt.subplot(2, 2, i)
+        subset = dataframe[dataframe['Department'] == department]
+        
+        # KDE and Histogram plot for each department's performance rating
+        sns.histplot(subset['PerformanceRating'], kde=True, bins=10, color=colour_set[i-1], edgecolor="black", alpha=0.7)
+        plt.title(f'Performance Rating Distribution for {department} Department')
+        plt.xlabel('Performance Rating')
+        plt.ylabel('Frequency')
+    
+    plt.tight_layout()
+    plt.show()
+
+plot_kde_histograms(dataframe)
+
+ 
+
+#Perform one-way ANOVA on performance ratings across different departments 
+grouped_data = [dataframe[dataframe['Department'] == department]['PerformanceRating'] for department in dataframe['Department'].unique()]
+
+# Perform ANOVA
+f_statistic, p_value = stats.f_oneway(*grouped_data)
+
+print(f'F-statistic: {f_statistic:.2f}')
+print(f'P-value: {p_value:.4f}')
+
+
+# Create an empty dictionary to store department counts
+department_counts = {}
+
+# Loop through unique department values
+for department in dataframe['Department'].unique():
+    # Count the occurrences of the current department and store it in the dictionary
+    count = len(dataframe[dataframe['Department'] == department])
+    department_counts[department] = count
+
+# Print the department counts
+for department, count in department_counts.items():
+    print(f"Department {department}: {count} observations")
+
+
+# Set significance level (alpha)
+alpha = 0.05
+
+# Perform interpretation based on p-value
+if p_value < alpha:
+    print("The performance ratings across different departments are significantly different.")
+else:
+    print("No significant difference in performance ratings among the departments.")
+
+# Degrees of freedom
+df_between = len(dataframe['Department'].unique()) - 1  # Number of groups - 1
+df_within = len(dataframe) - len(dataframe['Department'].unique())  # Total samples - number of groups
+
+# Calculate the critical F-value based on alpha and degrees of freedom
+critical_f_value = stats.f.ppf(1 - alpha, df_between, df_within)
+
+# Print results from ANOVA
+print("One-way ANOVA Results:")
+print(f"F-statistic: {f_statistic:.2f}")  # Use f_statistic from the ANOVA test
+print(f"Critical F-value: {critical_f_value:.2f}")  # Critical F-value for comparison
+print(f"P-value: {p_value:.4f}")  # P-value from ANOVA test
+
+# Compare F-statistic to the critical F-value and make the decision
+if f_statistic > critical_f_value:  # Use f_statistic instead of f_stat
+    print("Reject the null hypothesis: there is a significant difference among departments.")
+else:
+    print("Fail to reject the null hypothesis: no significant difference among departments.")
+
+print("---")
+
+
+# Perform Tukey's HSD post-hoc test
+multicomp = MultiComparison(dataframe['PerformanceRating'], dataframe['Department'])
+result = multicomp.tukeyhsd()
+
+
+print("\nTukey's HSD Post Hoc Test Results:")
+print(result.summary())
+
+
+if p_value < alpha:
+    print("\nPost-hoc test confirms significant differences between department pairs.")
+else:
+    print("\nNo post-hoc test needed as ANOVA was not significant.")
