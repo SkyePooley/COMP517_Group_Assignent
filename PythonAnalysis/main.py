@@ -1,17 +1,15 @@
 import math
-import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy import stats
 import statsmodels.api as sm
-from statsmodels.formula.api import ols
-from scipy.stats import f
 from statsmodels.stats.multicomp import MultiComparison
 
+# NOTE please use the dataset provided with this submission.
 
 DATA_FILEPATH = "Employee_Performance.csv"
-colour_set = ['#2A9D8F', '#E9C46A', '#F4A261', '#E76F51']
+COLOUR_SET = ['#2A9D8F', '#E9C46A', '#F4A261', '#E76F51']
 
 def load_data(file_path):
     #seniority level was assigned using this excel formula:
@@ -23,7 +21,9 @@ def print_summary(dataframe):
     print(dataframe.head())
     print(dataframe.describe())
 
+
 ## Check for outliers, missing values, and duplicates.
+## Author - Skye
 def check_data_validity(dataframe):
     print("~ Duplicate checks:")
     duplicates = dataframe[dataframe.duplicated(keep=False)]
@@ -65,6 +65,7 @@ def check_data_validity(dataframe):
 
 
 ## Remove suspected outliers
+## Author - Skye
 def remove_outliers(dataframe, threshold = 1.5):
     q1 = dataframe['Salary'].quantile(0.25)
     q3 = dataframe['Salary'].quantile(0.75)
@@ -76,6 +77,7 @@ def remove_outliers(dataframe, threshold = 1.5):
 
 
 ## Create plots for the categorical variables.
+## Author - Skye
 def categorical_plots(dataframe):
     # Graph proportion of gender
     gender_counts = dataframe['Gender'].value_counts()
@@ -89,7 +91,7 @@ def categorical_plots(dataframe):
     department_counts = dataframe['Department'].value_counts()
     print(department_counts)
     plt.figure(figsize=(7, 7))
-    plt.pie(department_counts, labels=department_counts.index, autopct='%1.1f%%', startangle=90, colors=colour_set)
+    plt.pie(department_counts, labels=department_counts.index, autopct='%1.1f%%', startangle=90, colors=COLOUR_SET)
     plt.title('Proportion of Employee Count by Department', fontweight='bold')
     plt.show()
 
@@ -97,12 +99,13 @@ def categorical_plots(dataframe):
     seniority_counts = dataframe['Seniority'].value_counts()
     print(seniority_counts)
     plt.figure(figsize=(7, 7))
-    plt.pie(seniority_counts, labels=seniority_counts.index, autopct='%1.1f%%', startangle=90, colors=colour_set)
+    plt.pie(seniority_counts, labels=seniority_counts.index, autopct='%1.1f%%', startangle=90, colors=COLOUR_SET)
     plt.title('Proportion of Employee Count by Seniority', fontweight='bold')
     plt.show()
 
 
 ## Create a histogram with a box plot stacked on top
+## Author - Skye
 def stacked_box_histplot(dataframe, column_name, x_label, y_label, title, bins=20, discrete=False):
     plt.figure(figsize=(8, 5))
     fig, (axis_box, axis_histogram) = plt.subplots(2, sharex=True, gridspec_kw={"height_ratios": (.15, .85)})
@@ -113,6 +116,7 @@ def stacked_box_histplot(dataframe, column_name, x_label, y_label, title, bins=2
 
 
 ## Create plots for the quantitative variables
+## Author - Skye
 def quantitative_plots(dataframe):
     # Years of experience
     plt.figure(figsize=(8,5))
@@ -146,9 +150,10 @@ def quantitative_plots(dataframe):
 
 
 ## Create a violin plot of performance rating grouped by seniority.
+## Author - Skye
 def plot_performance_by_experience(dataframe, department):
     violin = sns.boxplot(y=dataframe['PerformanceRating'], x=dataframe['Seniority'],
-                            palette=colour_set, hue=dataframe['Seniority'])
+                         palette=COLOUR_SET, hue=dataframe['Seniority'])
 
 
     labels = ['Junior', 'Entry-Level', 'Mid-Level', 'Senior']
@@ -163,6 +168,7 @@ def plot_performance_by_experience(dataframe, department):
 
 
 ## Compare performance ratings between departments
+## Author - Skye
 def multivariate(dataframe):
     department_dataframes = {
         'IT': dataframe[dataframe['Department'] == 'IT'],
@@ -175,6 +181,7 @@ def multivariate(dataframe):
 
 
 ## Create histograms with KDE to check for normality in performance ratings.
+## Author - Skye
 def graph_performance_normality(dataframe):
     plt.figure(figsize=(10, 6))
     departments = dataframe['Department'].unique()
@@ -191,6 +198,7 @@ def graph_performance_normality(dataframe):
 
 
 ## Plot the correlation matrix of all quantitative variables.
+## Author - Skye
 def graph_correlation(dataframe):
     numerical_vars = ['Experience', 'TrainingHours', 'Salary', 'isMale', 'PerformanceRating']
     correlation_matrix = dataframe[numerical_vars].corr()
@@ -202,6 +210,7 @@ def graph_correlation(dataframe):
 
 
 ## Create scatter plots of the relationships between predictors and dependent
+## Author - Skye
 def graph_linearity(dataframe: pd.DataFrame, predictors: list[str], dependent: str):
     X = dataframe[predictors]
     Y = dataframe[dependent]
@@ -219,6 +228,7 @@ def graph_linearity(dataframe: pd.DataFrame, predictors: list[str], dependent: s
 
 
 ## Get an OLS linear regression model for the given dataset
+## Author - Skye
 def fit_linear_model(dataframe: pd.DataFrame, predictors: list[str], dependent: str) -> sm.regression.linear_model.RegressionResults:
     X = dataframe[predictors]
     Y = dataframe[dependent]
@@ -238,6 +248,7 @@ def qq_plot(model):
 
 
 ## Create homoscedasticity plot of residuals
+## Author - Skye
 def homoscedasticity_plot(model):
     residuals = model.resid
     predictions = model.fittedvalues
@@ -251,23 +262,100 @@ def homoscedasticity_plot(model):
     plt.show()
 
 
+## Give the number of employees in each department
+## Author - Gurleen
+def count_departments(dataframe):
+    # Create an empty dictionary to store department counts
+    department_counts = {}
+
+    # Loop through unique department values
+    for department in dataframe['Department'].unique():
+        # Count the occurrences of the current department and store it in the dictionary
+        count = len(dataframe[dataframe['Department'] == department])
+        department_counts[department] = count
+
+    # Print the department counts
+    for department, count in department_counts.items():
+        print(f"Department {department}: {count} observations")
+
+
+# Perform one-way ANOVA on performance ratings across different departments
+# Author - Gurleen
+def anova(dataframe):
+    grouped_data = [dataframe[dataframe['Department'] == department]['PerformanceRating'] for department in
+                    dataframe['Department'].unique()]
+
+    # Perform ANOVA
+    f_statistic, p_value = stats.f_oneway(*grouped_data)
+
+    print(f'F-statistic: {f_statistic:.2f}')
+    print(f'P-value: {p_value:.4f}')
+
+    # Set significance level (alpha)
+    alpha = 0.05
+
+    # Perform interpretation based on p-value
+    if p_value < alpha:
+        print("The performance ratings across different departments are significantly different.")
+    else:
+        print("No significant difference in performance ratings among the departments.")
+
+    # Degrees of freedom
+    df_between = len(dataframe['Department'].unique()) - 1  # Number of groups - 1
+    df_within = len(dataframe) - len(dataframe['Department'].unique())  # Total samples - number of groups
+
+    # Calculate the critical F-value based on alpha and degrees of freedom
+    critical_f_value = stats.f.ppf(1 - alpha, df_between, df_within)
+
+    # Print results from ANOVA
+    print("One-way ANOVA Results:")
+    print(f"F-statistic: {f_statistic:.2f}")  # Use f_statistic from the ANOVA test
+    print(f"Critical F-value: {critical_f_value:.2f}")  # Critical F-value for comparison
+    print(f"P-value: {p_value:.4f}")  # P-value from ANOVA test
+
+    # Compare F-statistic to the critical F-value and make the decision
+    if f_statistic > critical_f_value:  # Use f_statistic instead of f_stat
+        print("Reject the null hypothesis: there is a significant difference among departments.")
+    else:
+        print("Fail to reject the null hypothesis: no significant difference among departments.")
+
+    print("---")
+
+
+## Run Tukey's post-hoc test to find which department is different
+## Author - Gurleen
+def tukeys_post_hoc(dataframe):
+    # Perform Tukey's HSD post-hoc test
+    multicomp = MultiComparison(dataframe['PerformanceRating'], dataframe['Department'])
+    result = multicomp.tukeyhsd()
+
+    print("\nTukey's HSD Post Hoc Test Results:")
+    print(result.summary())
+
+
 if __name__ == '__main__':
-    # ~~~ Import Data ~~~
+    # ~~~ Import Data ~~~ (Skye)
     dataframe = load_data(DATA_FILEPATH)
     print_summary(dataframe)
     check_data_validity(dataframe)
-    dataframe = remove_outliers(dataframe)
+    # Not using remove_outliers
+    # dataframe = remove_outliers(dataframe)
 
     # Create a boolean value from the gender field for use in multiple linear regression
     dataframe['isMale'] = [1 if gender == 'Male' else 0 for gender in dataframe['Gender']]
 
-    # ~~~ Create Graphs ~~~
+    # ~~~ Create Exploration Graphs ~~~ (Skye)
     categorical_plots(dataframe)
     quantitative_plots(dataframe)
     graph_performance_normality(dataframe)
     multivariate(dataframe)
 
-    # ~~~ Linear Regression ~~~
+    # ~~~ Hypothesis Testing ~~~ (Gurleen)
+    count_departments(dataframe)
+    anova(dataframe)
+    tukeys_post_hoc(dataframe)
+
+    # ~~~ Linear Regression ~~~ (Skye)
     # Transformation of experience doesn't work very well.
     dataframe['sqrtExperience'] = [math.log(10 * x) if x > 0 else 0 for x in dataframe['Experience']]
     graph_linearity(dataframe, ['Experience', 'sqrtExperience', 'TrainingHours', 'Salary'], 'PerformanceRating')
@@ -277,73 +365,3 @@ if __name__ == '__main__':
     print(model.summary())
     qq_plot(model)
     homoscedasticity_plot(model)
-
-
-    #Perform one-way ANOVA on performance ratings across different departments 
-grouped_data = [dataframe[dataframe['Department'] == department]['PerformanceRating'] for department in dataframe['Department'].unique()]
-
-# Perform ANOVA
-f_statistic, p_value = stats.f_oneway(*grouped_data)
-
-print(f'F-statistic: {f_statistic:.2f}')
-print(f'P-value: {p_value:.4f}')
-
-
-# Create an empty dictionary to store department counts
-department_counts = {}
-
-# Loop through unique department values
-for department in dataframe['Department'].unique():
-    # Count the occurrences of the current department and store it in the dictionary
-    count = len(dataframe[dataframe['Department'] == department])
-    department_counts[department] = count
-
-# Print the department counts
-for department, count in department_counts.items():
-    print(f"Department {department}: {count} observations")
-
-
-# Set significance level (alpha)
-alpha = 0.05
-
-# Perform interpretation based on p-value
-if p_value < alpha:
-    print("The performance ratings across different departments are significantly different.")
-else:
-    print("No significant difference in performance ratings among the departments.")
-
-# Degrees of freedom
-df_between = len(dataframe['Department'].unique()) - 1  # Number of groups - 1
-df_within = len(dataframe) - len(dataframe['Department'].unique())  # Total samples - number of groups
-
-# Calculate the critical F-value based on alpha and degrees of freedom
-critical_f_value = stats.f.ppf(1 - alpha, df_between, df_within)
-
-# Print results from ANOVA
-print("One-way ANOVA Results:")
-print(f"F-statistic: {f_statistic:.2f}")  # Use f_statistic from the ANOVA test
-print(f"Critical F-value: {critical_f_value:.2f}")  # Critical F-value for comparison
-print(f"P-value: {p_value:.4f}")  # P-value from ANOVA test
-
-# Compare F-statistic to the critical F-value and make the decision
-if f_statistic > critical_f_value:  # Use f_statistic instead of f_stat
-    print("Reject the null hypothesis: there is a significant difference among departments.")
-else:
-    print("Fail to reject the null hypothesis: no significant difference among departments.")
-
-print("---")
-
-
-# Perform Tukey's HSD post-hoc test
-multicomp = MultiComparison(dataframe['PerformanceRating'], dataframe['Department'])
-result = multicomp.tukeyhsd()
-
-
-print("\nTukey's HSD Post Hoc Test Results:")
-print(result.summary())
-
-
-if p_value < alpha:
-    print("\nPost-hoc test confirms significant differences between department pairs.")
-else:
-    print("\nNo post-hoc test needed as ANOVA was not significant.")
