@@ -1,8 +1,14 @@
-﻿import numpy as np
+import math
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy import stats
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+from scipy.stats import f
+from statsmodels.stats.multicomp import MultiComparison
+
 
 DATA_FILEPATH = "Employee_Performance.csv"
 colour_set = ['#2A9D8F', '#E9C46A', '#F4A261', '#E76F51']
@@ -13,11 +19,11 @@ def load_data(file_path):
     return pd.read_csv(file_path)
 
 
-def print_sumary(dataframe):
+def print_summary(dataframe):
     print(dataframe.head())
     print(dataframe.describe())
 
-
+## Check for outliers, missing values, and duplicates.
 def check_data_validity(dataframe):
     print("~ Duplicate checks:")
     duplicates = dataframe[dataframe.duplicated(keep=False)]
@@ -58,6 +64,7 @@ def check_data_validity(dataframe):
     plt.show()
 
 
+## Remove suspected outliers
 def remove_outliers(dataframe, threshold = 1.5):
     q1 = dataframe['Salary'].quantile(0.25)
     q3 = dataframe['Salary'].quantile(0.75)
@@ -68,6 +75,7 @@ def remove_outliers(dataframe, threshold = 1.5):
     return dataframe.drop(outlier_rows.index)
 
 
+## Create plots for the categorical variables.
 def categorical_plots(dataframe):
     # Graph proportion of gender
     gender_counts = dataframe['Gender'].value_counts()
@@ -94,18 +102,21 @@ def categorical_plots(dataframe):
     plt.show()
 
 
+## Create a histogram with a box plot stacked on top
 def stacked_box_histplot(dataframe, column_name, x_label, y_label, title, bins=20, discrete=False):
     plt.figure(figsize=(8, 5))
     fig, (axis_box, axis_histogram) = plt.subplots(2, sharex=True, gridspec_kw={"height_ratios": (.15, .85)})
     sns.boxplot(dataframe[column_name], orient='h', ax=axis_box)
-    sns.histplot(data=dataframe, x=column_name, bins=bins, ax=axis_histogram, discrete=discrete)
+    sns.histplot(data=dataframe, x=column_name, bins=bins, ax=axis_histogram, discrete=discrete, kde=True)
     axis_box.set(xlabel='', title=title)
     axis_histogram.set(xlabel=x_label, ylabel=y_label)
 
 
+## Create plots for the quantitative variables
 def quantitative_plots(dataframe):
+    # Years of experience
     plt.figure(figsize=(8,5))
-    plt.title('Employees by Years of Experience (excluding highly paid employees)', fontweight='bold')
+    plt.title('Employees by Years of Experience', fontweight='bold')
     sns.set_style("whitegrid")
     sns.histplot(data=dataframe, x="Experience", bins=10, kde=False, discrete=True)
     plt.xticks([0,1,2,3,4,5,6,7,8,9])
@@ -113,27 +124,32 @@ def quantitative_plots(dataframe):
     plt.ylabel('Count of Employees')
     plt.show()
 
+    # Training hours
     stacked_box_histplot(dataframe, 'TrainingHours',
                          'Hours of Training', 'Count of Employees',
-                         'Employees by Training Hours')
+                         'Employees by Training Hours', bins=10)
     plt.show()
 
+    # Performance rating
     stacked_box_histplot(dataframe, 'PerformanceRating',
                          'Performance Rating', 'Count of Employees',
                          'Employees by Performance Rating', bins=10)
     plt.xticks([1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5])
     plt.show()
 
+    # Salary
     stacked_box_histplot(dataframe, 'Salary',
                          'Monthly Salary', 'Count of Employees', 'Employees by Salary Including Highly Paid Employees',
-                         bins=30)
+                         bins=10)
     plt.show()
     print(dataframe['Salary'].mode())
 
 
+## Create a violin plot of performance rating grouped by seniority.
 def plot_performance_by_experience(dataframe, department):
-    violin = sns.violinplot(y=dataframe['PerformanceRating'], x=dataframe['Seniority'],
+    violin = sns.boxplot(y=dataframe['PerformanceRating'], x=dataframe['Seniority'],
                             palette=colour_set, hue=dataframe['Seniority'])
+
 
     labels = ['Junior', 'Entry-Level', 'Mid-Level', 'Senior']
     violin.set_xticks(range(4))
@@ -146,6 +162,7 @@ def plot_performance_by_experience(dataframe, department):
     plt.show()
 
 
+## Compare performance ratings between departments
 def multivariate(dataframe):
     department_dataframes = {
         'IT': dataframe[dataframe['Department'] == 'IT'],
@@ -157,13 +174,176 @@ def multivariate(dataframe):
         plot_performance_by_experience(df, name)
 
 
+## Create histograms with KDE to check for normality in performance ratings.
+def graph_performance_normality(dataframe):
+    plt.figure(figsize=(10, 6))
+    departments = dataframe['Department'].unique()
+
+    for i in range(len(departments)):
+        plt.subplot(2,2, i+1)
+        sns.histplot(data=dataframe[dataframe['Department'] == departments[i]], x='Experience', kde=True, bins=10)
+        plt.title(f'Experience of {departments[i]} employees', fontweight='bold')
+        plt.xlabel('Experience')
+        plt.ylabel('Frequency')
+
+    plt.tight_layout()
+    plt.show()
+
+
+## Plot the correlation matrix of all quantitative variables.
+def graph_correlation(dataframe):
+    numerical_vars = ['Experience', 'TrainingHours', 'Salary', 'isMale', 'PerformanceRating']
+    correlation_matrix = dataframe[numerical_vars].corr()
+
+    plt.figure(figsize=(8, 8))
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', linewidths=0.5)
+    plt.title('Correlation Heatmap for All Numerical Data', fontweight='bold')
+    plt.show()
+
+
+## Create scatter plots of the relationships between predictors and dependent
+def graph_linearity(dataframe: pd.DataFrame, predictors: list[str], dependent: str):
+    X = dataframe[predictors]
+    Y = dataframe[dependent]
+
+    fig, axes = plt.subplots(nrows=1, ncols=len(X.columns), figsize=(15, 5))
+
+    for i, col in enumerate(X.columns):
+        axes[i].scatter(X[col], Y, alpha=0.5)
+        axes[i].set_title(f'{col} vs Performance Rating')
+        axes[i].set_xlabel(col)
+        axes[i].set_ylabel('Performance Rating')
+
+    plt.tight_layout()
+    plt.show()
+
+
+## Get an OLS linear regression model for the given dataset
+def fit_linear_model(dataframe: pd.DataFrame, predictors: list[str], dependent: str) -> sm.regression.linear_model.RegressionResults:
+    X = dataframe[predictors]
+    Y = dataframe[dependent]
+
+    X = sm.add_constant(X)
+    return sm.OLS(Y, X).fit()
+
+
+## Create qq plot of model residuals
+def qq_plot(model):
+    residuals = model.resid
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    sm.qqplot(residuals, line='s', ax=ax)
+    plt.title("Q-Q Plot of Residuals")
+    plt.show()
+
+
+## Create homoscedasticity plot of residuals
+def homoscedasticity_plot(model):
+    residuals = model.resid
+    predictions = model.fittedvalues
+
+    plt.figure(figsize=(8, 6))
+    plt.scatter(predictions, residuals, alpha=0.6)
+    plt.axhline(y=0, color='red', linestyle='--')
+    plt.xlabel("Predicted Values")
+    plt.ylabel("Residuals")
+    plt.title("Residuals vs. Predicted Values (Homoscedasticity Plot)")
+    plt.show()
+
 
 if __name__ == '__main__':
+    # ~~~ Import Data ~~~
     dataframe = load_data(DATA_FILEPATH)
-    print_sumary(dataframe)
-    # check_data_validity(dataframe)
-    # dataframe = remove_outliers(dataframe)
-    # categorical_plots(dataframe)
-    # quantitative_plots(dataframe)
+    print_summary(dataframe)
+    check_data_validity(dataframe)
+    dataframe = remove_outliers(dataframe)
+
+    # Create a boolean value from the gender field for use in multiple linear regression
+    dataframe['isMale'] = [1 if gender == 'Male' else 0 for gender in dataframe['Gender']]
+
+    # ~~~ Create Graphs ~~~
+    categorical_plots(dataframe)
+    quantitative_plots(dataframe)
+    graph_performance_normality(dataframe)
     multivariate(dataframe)
 
+    # ~~~ Linear Regression ~~~
+    # Transformation of experience doesn't work very well.
+    dataframe['sqrtExperience'] = [math.log(10 * x) if x > 0 else 0 for x in dataframe['Experience']]
+    graph_linearity(dataframe, ['Experience', 'sqrtExperience', 'TrainingHours', 'Salary'], 'PerformanceRating')
+    graph_correlation(dataframe)
+
+    model = fit_linear_model(dataframe, ['Experience', 'TrainingHours'], 'PerformanceRating')
+    print(model.summary())
+    qq_plot(model)
+    homoscedasticity_plot(model)
+
+
+    #Perform one-way ANOVA on performance ratings across different departments 
+grouped_data = [dataframe[dataframe['Department'] == department]['PerformanceRating'] for department in dataframe['Department'].unique()]
+
+# Perform ANOVA
+f_statistic, p_value = stats.f_oneway(*grouped_data)
+
+print(f'F-statistic: {f_statistic:.2f}')
+print(f'P-value: {p_value:.4f}')
+
+
+# Create an empty dictionary to store department counts
+department_counts = {}
+
+# Loop through unique department values
+for department in dataframe['Department'].unique():
+    # Count the occurrences of the current department and store it in the dictionary
+    count = len(dataframe[dataframe['Department'] == department])
+    department_counts[department] = count
+
+# Print the department counts
+for department, count in department_counts.items():
+    print(f"Department {department}: {count} observations")
+
+
+# Set significance level (alpha)
+alpha = 0.05
+
+# Perform interpretation based on p-value
+if p_value < alpha:
+    print("The performance ratings across different departments are significantly different.")
+else:
+    print("No significant difference in performance ratings among the departments.")
+
+# Degrees of freedom
+df_between = len(dataframe['Department'].unique()) - 1  # Number of groups - 1
+df_within = len(dataframe) - len(dataframe['Department'].unique())  # Total samples - number of groups
+
+# Calculate the critical F-value based on alpha and degrees of freedom
+critical_f_value = stats.f.ppf(1 - alpha, df_between, df_within)
+
+# Print results from ANOVA
+print("One-way ANOVA Results:")
+print(f"F-statistic: {f_statistic:.2f}")  # Use f_statistic from the ANOVA test
+print(f"Critical F-value: {critical_f_value:.2f}")  # Critical F-value for comparison
+print(f"P-value: {p_value:.4f}")  # P-value from ANOVA test
+
+# Compare F-statistic to the critical F-value and make the decision
+if f_statistic > critical_f_value:  # Use f_statistic instead of f_stat
+    print("Reject the null hypothesis: there is a significant difference among departments.")
+else:
+    print("Fail to reject the null hypothesis: no significant difference among departments.")
+
+print("---")
+
+
+# Perform Tukey's HSD post-hoc test
+multicomp = MultiComparison(dataframe['PerformanceRating'], dataframe['Department'])
+result = multicomp.tukeyhsd()
+
+
+print("\nTukey's HSD Post Hoc Test Results:")
+print(result.summary())
+
+
+if p_value < alpha:
+    print("\nPost-hoc test confirms significant differences between department pairs.")
+else:
+    print("\nNo post-hoc test needed as ANOVA was not significant.")
